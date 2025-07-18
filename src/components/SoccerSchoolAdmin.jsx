@@ -1,6 +1,6 @@
 // src/components/SoccerSchoolAdmin.jsx
 import React, { useState, useEffect } from 'react';
-import { Users, Link, RotateCcw, Search, Plus, X } from 'lucide-react';
+import { Users, Link, RotateCcw, Search, Plus, X, Trash } from 'lucide-react';
 
 const SoccerSchoolAdmin = () => {
     // ── State 定義 ─────────────────────────────────
@@ -86,10 +86,18 @@ const SoccerSchoolAdmin = () => {
 
     const handleSetSibling = (targetPlayer) => {
         if (!selectedPlayer) return;
-        const num = (id) => id ? parseInt(id.replace(/\D/g, ''), 10) : Infinity;
-        const newId = num(selectedPlayer.family_id) <= num(targetPlayer.family_id)
-            ? selectedPlayer.family_id
-            : targetPlayer.family_id;
+        const parentCount = (familyId) => lineUsers.filter(u => u.family_id === familyId).length;
+        const countSel = parentCount(selectedPlayer.family_id);
+        const countTar = parentCount(targetPlayer.family_id);
+        let newId;
+        if (countSel === 0 && countTar === 0) {
+            const num = (id) => id ? parseInt(id.replace(/\D/g, ''), 10) : Infinity;
+            newId = num(selectedPlayer.family_id) <= num(targetPlayer.family_id)
+                ? selectedPlayer.family_id
+                : targetPlayer.family_id;
+        } else {
+            newId = countSel >= countTar ? selectedPlayer.family_id : targetPlayer.family_id;
+        }
         const ids = [selectedPlayer.family_id, targetPlayer.family_id];
         setPlayers(players.map(p =>
             ids.includes(p.family_id)
@@ -113,12 +121,29 @@ const SoccerSchoolAdmin = () => {
         setShowPlayerForm(false);
     };
 
+    const handleDeletePlayer = (playerId) => {
+        if (window.confirm('本当に削除しますか？')) {
+            setPlayers(players.filter(p => p.id !== playerId));
+        }
+    };
+
+    const getSiblings = player =>
+        players.filter(p => p.family_id === player.family_id && p.id !== player.id);
+
     const filteredPlayers = players.filter(p =>
         p.name.includes(searchTerm)
     );
     const filteredLineUsers = lineUsers.filter(u =>
         u.display_name.includes(searchTerm)
     );
+
+    const sortedPlayers = filteredPlayers.slice().sort((a, b) => {
+        const hasParent = (pl) => lineUsers.some(u => u.family_id === pl.family_id);
+        const aHas = hasParent(a);
+        const bHas = hasParent(b);
+        if (aHas === bHas) return 0;
+        return aHas ? 1 : -1;
+    });
 
     // ── JSX ────────────────────────────────────────
     return (
@@ -189,7 +214,7 @@ const SoccerSchoolAdmin = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredPlayers.map(p => (
+                                    {sortedPlayers.map(p => (
                                         <tr key={p.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4">{p.name}</td>
                                             <td className="px-6 py-4">
@@ -215,10 +240,15 @@ const SoccerSchoolAdmin = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex flex-wrap gap-1">
+                                                <div className="flex flex-wrap gap-1 items-center">
                                                     {getLinkedParents(p).map(u => (
                                                         <span key={u.id} className="px-2 py-1 text-xs bg-gray-100 rounded-full">
                                                             {u.display_name}
+                                                        </span>
+                                                    ))}
+                                                    {getSiblings(p).map(s => (
+                                                        <span key={s.id} className="px-2 py-1 text-xs bg-blue-100 rounded-full">
+                                                            {s.name}
                                                         </span>
                                                     ))}
                                                 </div>
@@ -239,6 +269,11 @@ const SoccerSchoolAdmin = () => {
                                                     className="ml-2 text-blue-600 hover:text-blue-900 flex items-center space-x-1"
                                                 >
                                                     <Users className="w-4 h-4" /> <span>兄弟設定</span>
+                                                </button>
+                                                <button onClick={() => handleDeletePlayer(p.id)}
+                                                    className="ml-2 text-red-600 hover:text-red-900 flex items-center space-x-1"
+                                                >
+                                                    <Trash className="w-4 h-4" /> <span>削除</span>
                                                 </button>
                                             </td>
                                         </tr>
