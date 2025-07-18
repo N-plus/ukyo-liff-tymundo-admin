@@ -1,6 +1,6 @@
 // src/components/SoccerSchoolAdmin.jsx
 import React, { useState, useEffect } from 'react';
-import { Users, Link, RotateCcw, Search, Plus, X } from 'lucide-react';
+import { Users, Link, RotateCcw, Search, Plus, X, Trash } from 'lucide-react';
 
 const SoccerSchoolAdmin = () => {
     // ── State 定義 ─────────────────────────────────
@@ -11,7 +11,9 @@ const SoccerSchoolAdmin = () => {
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [showSiblingModal, setShowSiblingModal] = useState(false);
     const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [showParentLinkModal, setShowParentLinkModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedParent, setSelectedParent] = useState(null);
     const [newPlayerName, setNewPlayerName] = useState('');
 
     // ── JSON 読み込み ────────────────────────────────
@@ -84,12 +86,42 @@ const SoccerSchoolAdmin = () => {
         ));
     };
 
+    const getLinkedPlayers = parent =>
+        players.filter(p => p.family_id === parent.family_id);
+
+    const getUnlinkedPlayers = parent =>
+        players.filter(p => p.family_id !== parent.family_id);
+
+    const linkPlayerToParent = (parent, player) => {
+        setPlayers(players.map(p =>
+            p.id === player.id
+                ? { ...p, family_id: parent.family_id }
+                : p
+        ));
+    };
+
+    const unlinkPlayerFromParent = (parent, player) => {
+        setPlayers(players.map(p =>
+            p.id === player.id
+                ? { ...p, family_id: null }
+                : p
+        ));
+    };
+
     const handleSetSibling = (targetPlayer) => {
         if (!selectedPlayer) return;
-        const num = (id) => id ? parseInt(id.replace(/\D/g, ''), 10) : Infinity;
-        const newId = num(selectedPlayer.family_id) <= num(targetPlayer.family_id)
-            ? selectedPlayer.family_id
-            : targetPlayer.family_id;
+        const parentCount = (familyId) => lineUsers.filter(u => u.family_id === familyId).length;
+        const countSel = parentCount(selectedPlayer.family_id);
+        const countTar = parentCount(targetPlayer.family_id);
+        let newId;
+        if (countSel === 0 && countTar === 0) {
+            const num = (id) => id ? parseInt(id.replace(/\D/g, ''), 10) : Infinity;
+            newId = num(selectedPlayer.family_id) <= num(targetPlayer.family_id)
+                ? selectedPlayer.family_id
+                : targetPlayer.family_id;
+        } else {
+            newId = countSel >= countTar ? selectedPlayer.family_id : targetPlayer.family_id;
+        }
         const ids = [selectedPlayer.family_id, targetPlayer.family_id];
         setPlayers(players.map(p =>
             ids.includes(p.family_id)
@@ -113,6 +145,15 @@ const SoccerSchoolAdmin = () => {
         setShowPlayerForm(false);
     };
 
+    const handleDeletePlayer = (playerId) => {
+        if (window.confirm('本当に削除しますか？')) {
+            setPlayers(players.filter(p => p.id !== playerId));
+        }
+    };
+
+    const getSiblings = player =>
+        players.filter(p => p.family_id === player.family_id && p.id !== player.id);
+
     const filteredPlayers = players.filter(p =>
         p.name.includes(searchTerm)
     );
@@ -120,26 +161,46 @@ const SoccerSchoolAdmin = () => {
         u.display_name.includes(searchTerm)
     );
 
+    const hasLinkedPlayer = parent =>
+        players.some(p => p.family_id === parent.family_id);
+
+    const sortedLineUsers = filteredLineUsers.slice().sort((a, b) => {
+        const aHas = hasLinkedPlayer(a);
+        const bHas = hasLinkedPlayer(b);
+        if (aHas === bHas) return 0;
+        return aHas ? 1 : -1;
+    });
+
+    const hasLinkedParent = player =>
+        lineUsers.some(u => u.family_id === player.family_id);
+
+    const sortedPlayers = filteredPlayers.slice().sort((a, b) => {
+        const aHas = hasLinkedParent(a);
+        const bHas = hasLinkedParent(b);
+        if (aHas === bHas) return 0;
+        return aHas ? 1 : -1;
+    });
+
     // ── JSX ────────────────────────────────────────
     return (
         <div className="min-h-screen bg-gray-50">
             {/* ヘッダー */}
-            <div className="bg-white shadow-sm border-b">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="bg-black shadow-sm border-b">
+                <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                     <div className="flex items-center">
-                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
                             <Users className="w-5 h-5 text-white" />
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900">T.Y.MUNDO管理画面</h1>
+                        <h1 className="text-2xl font-bold text-white">スクール管理画面</h1>
                     </div>
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto mt-2 sm:mt-0">
                         <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="検索..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                     </div>
                 </div>
@@ -147,13 +208,13 @@ const SoccerSchoolAdmin = () => {
 
             {/* タブ */}
             <div className="max-w-7xl mx-auto px-4 border-b border-gray-200">
-                <nav className="flex space-x-8">
+                <nav className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-8">
                     {['players', 'parents'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab
-                                ? 'border-green-500 text-green-600'
+                                ? 'border-blue-500 text-blue-600'
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                 }`}
                         >
@@ -165,32 +226,32 @@ const SoccerSchoolAdmin = () => {
                 </nav>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 py-8 space-y-6">
                 {/* ── 選手タブ ── */}
                 {activeTab === 'players' && (
                     <div>
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-2 sm:space-y-0">
                             <h2 className="text-lg font-semibold">選手一覧</h2>
                             <button
                                 onClick={() => setShowPlayerForm(true)}
-                                className="bg-green-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-green-600"
+                                className="bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-blue-600 w-full sm:w-auto"
                             >
                                 <Plus className="w-4 h-4" /> <span>選手追加</span>
                             </button>
                         </div>
                         <div className="bg-white rounded-lg shadow overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">選手名</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">振替回数</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">紐づけ済み保護者</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">選手名</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">振替回数</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">紐づけ済み保護者</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredPlayers.map(p => (
-                                        <tr key={p.id} className="hover:bg-gray-50">
+                                    {sortedPlayers.map(p => (
+                                        <tr key={p.id} className={`${hasLinkedParent(p) ? '' : 'bg-red-50'}`}>
                                             <td className="px-6 py-4">{p.name}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center space-x-2">
@@ -199,7 +260,7 @@ const SoccerSchoolAdmin = () => {
                                                         className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300"
                                                     >-</button>
                                                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${p.substitute_count > 0
-                                                        ? 'bg-green-100 text-green-800'
+                                                        ? 'bg-blue-100 text-blue-800'
                                                         : 'bg-gray-100 text-gray-500'
                                                         }`}>
                                                         {p.substitute_count}
@@ -215,10 +276,23 @@ const SoccerSchoolAdmin = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex flex-wrap gap-1">
+                                                <div className="flex flex-wrap gap-1 items-center">
+                                                    {getLinkedParents(p).length === 0 && (
+                                                        <span className="px-2 py-1 text-xs text-red-600">未登録</span>
+                                                    )}
                                                     {getLinkedParents(p).map(u => (
                                                         <span key={u.id} className="px-2 py-1 text-xs bg-gray-100 rounded-full">
                                                             {u.display_name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1 items-center">
+                                                    {getSiblings(p).map(s => (
+                                                        <span key={s.id} className="px-2 py-1 text-xs bg-blue-100 rounded-full">
+                                                            {s.name}
                                                         </span>
                                                     ))}
                                                 </div>
@@ -228,7 +302,7 @@ const SoccerSchoolAdmin = () => {
                                                     setSelectedPlayer(p);
                                                     setShowLinkModal(true);
                                                 }}
-                                                    className="text-green-600 hover:text-green-900 flex items-center space-x-1"
+                                                    className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
                                                 >
                                                     <Link className="w-4 h-4" /> <span>紐づけ</span>
                                                 </button>
@@ -239,6 +313,11 @@ const SoccerSchoolAdmin = () => {
                                                     className="ml-2 text-blue-600 hover:text-blue-900 flex items-center space-x-1"
                                                 >
                                                     <Users className="w-4 h-4" /> <span>兄弟設定</span>
+                                                </button>
+                                                <button onClick={() => handleDeletePlayer(p.id)}
+                                                    className="ml-2 text-red-600 hover:text-red-900 flex items-center space-x-1"
+                                                >
+                                                    <Trash className="w-4 h-4" /> <span>削除</span>
                                                 </button>
                                             </td>
                                         </tr>
@@ -254,34 +333,41 @@ const SoccerSchoolAdmin = () => {
                     <div>
                         <h2 className="text-lg font-semibold mb-4">保護者一覧（LINE登録済み）</h2>
                         <div className="bg-white rounded-lg shadow overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">プロフィール画像</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">表示名</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LINE ID</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録日</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">紐づけ済み選手</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">プロフィール画像</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">表示名</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">LINE ID</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">登録日</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">紐づけ済み選手</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredLineUsers.map(u => (
-                                        <tr key={u.id} className="hover:bg-gray-50">
+                                    {sortedLineUsers.map(u => (
+                                        <tr key={u.id} className={`${getLinkedPlayers(u).length === 0 ? 'bg-red-50' : ''}`}>
                                             <td className="px-6 py-4"><img src={u.picture_url} alt={u.display_name} className="w-10 h-10 rounded-full object-cover" /></td>
                                             <td className="px-6 py-4">{u.display_name}</td>
                                             <td className="px-6 py-4">{u.line_user_id}</td>
                                             <td className="px-6 py-4">{u.created_at}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-wrap gap-1">
-                                                    {players
-                                                        .filter(p => p.family_id === u.family_id)
-                                                        .map(p => (
-                                                            <span key={p.id} className="px-2 py-1 text-xs bg-blue-100 rounded-full">
-                                                                {p.name}
-                                                            </span>
-                                                        ))
-                                                    }
+                                                    {getLinkedPlayers(u).length === 0 && (
+                                                        <span className="px-2 py-1 text-xs text-red-600">未連携</span>
+                                                    )}
+                                                    {getLinkedPlayers(u).map(p => (
+                                                        <span key={p.id} className="px-2 py-1 text-xs bg-blue-100 rounded-full">
+                                                            {p.name}
+                                                        </span>
+                                                    ))}
                                                 </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <button onClick={() => { setSelectedParent(u); setShowParentLinkModal(true); }}
+                                                    className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
+                                                    <Link className="w-4 h-4" /> <span>紐づけ</span>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -304,7 +390,7 @@ const SoccerSchoolAdmin = () => {
                                     type="text"
                                     value={newPlayerName}
                                     onChange={e => setNewPlayerName(e.target.value)}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                                     placeholder="選手名を入力"
                                 />
                             </div>
@@ -315,7 +401,7 @@ const SoccerSchoolAdmin = () => {
                                 キャンセル
                             </button>
                             <button onClick={handleAddPlayer}
-                                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
                                 追加
                             </button>
                         </div>
@@ -336,7 +422,7 @@ const SoccerSchoolAdmin = () => {
                                         <div key={u.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                                             <span>{u.display_name}</span>
                                             <button onClick={() => { linkParentToPlayer(selectedPlayer, u); setShowLinkModal(false); }}
-                                                className="text-green-600 hover:text-green-900">
+                                                className="text-blue-600 hover:text-blue-900">
                                                 <Plus className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -347,7 +433,7 @@ const SoccerSchoolAdmin = () => {
                                 <h4 className="font-medium mb-2">紐づけ済み保護者</h4>
                                 <div className="space-y-2">
                                     {getLinkedParents(selectedPlayer).map(u => (
-                                        <div key={u.id} className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+                                        <div key={u.id} className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
                                             <span>{u.display_name}</span>
                                             <button onClick={() => unlinkParentFromPlayer(selectedPlayer, u)}
                                                 className="text-red-600 hover:text-red-900">
@@ -365,7 +451,48 @@ const SoccerSchoolAdmin = () => {
                     </div>
                 </div>
             )}
-
+            {/* ── 選手紐づけモーダル（保護者側） ── */}
+            {showParentLinkModal && selectedParent && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <h3 className="text-lg font-medium mb-4">「{selectedParent.display_name}」の選手を選択</h3>
+                        <div className="space-y-6">
+                            <div>
+                                <h4 className="font-medium mb-2">紐づけ可能な選手</h4>
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {getUnlinkedPlayers(selectedParent).map(p => (
+                                        <div key={p.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                            <span>{p.name}</span>
+                                            <button onClick={() => { linkPlayerToParent(selectedParent, p); setShowParentLinkModal(false); }}
+                                                className="text-blue-600 hover:text-blue-900">
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-medium mb-2">紐づけ済み選手</h4>
+                                <div className="space-y-2">
+                                    {getLinkedPlayers(selectedParent).map(p => (
+                                        <div key={p.id} className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
+                                            <span>{p.name}</span>
+                                            <button onClick={() => unlinkPlayerFromParent(selectedParent, p)}
+                                                className="text-red-600 hover:text-red-900">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => setShowParentLinkModal(false)}
+                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                            閉じる
+                        </button>
+                    </div>
+                </div>
+            )}
             {/* ── 兄弟設定モーダル ── */}
             {showSiblingModal && selectedPlayer && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -376,7 +503,7 @@ const SoccerSchoolAdmin = () => {
                                 <div key={pl.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                                     <span>{pl.name}</span>
                                     <button onClick={() => handleSetSibling(pl)}
-                                        className="text-green-600 hover:text-green-900">
+                                        className="text-blue-600 hover:text-blue-900">
                                         <Plus className="w-4 h-4" />
                                     </button>
                                 </div>
