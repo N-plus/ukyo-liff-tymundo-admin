@@ -9,6 +9,7 @@ const SoccerSchoolAdmin = () => {
     const [activeTab, setActiveTab] = useState('players');
     const [showPlayerForm, setShowPlayerForm] = useState(false);
     const [showLinkModal, setShowLinkModal] = useState(false);
+    const [showSiblingModal, setShowSiblingModal] = useState(false);
     const [selectedPlayer, setSelectedPlayer] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [newPlayerName, setNewPlayerName] = useState('');
@@ -83,6 +84,21 @@ const SoccerSchoolAdmin = () => {
         ));
     };
 
+    const handleSetSibling = (targetPlayer) => {
+        if (!selectedPlayer) return;
+        const num = (id) => id ? parseInt(id.replace(/\D/g, ''), 10) : Infinity;
+        const newId = num(selectedPlayer.family_id) <= num(targetPlayer.family_id)
+            ? selectedPlayer.family_id
+            : targetPlayer.family_id;
+        const ids = [selectedPlayer.family_id, targetPlayer.family_id];
+        setPlayers(players.map(p =>
+            ids.includes(p.family_id)
+                ? { ...p, family_id: newId }
+                : p
+        ));
+        setShowSiblingModal(false);
+    };
+
     const handleAddPlayer = () => {
         if (!newPlayerName.trim()) return;
         const newP = {
@@ -132,7 +148,7 @@ const SoccerSchoolAdmin = () => {
             {/* タブ */}
             <div className="max-w-7xl mx-auto px-4 border-b border-gray-200">
                 <nav className="flex space-x-8">
-                    {['players', 'parents', 'links'].map(tab => (
+                    {['players', 'parents'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -143,9 +159,7 @@ const SoccerSchoolAdmin = () => {
                         >
                             {tab === 'players'
                                 ? '選手管理'
-                                : tab === 'parents'
-                                    ? '保護者管理'
-                                    : '紐づけ管理'}
+                                : '保護者管理'}
                         </button>
                     ))}
                 </nav>
@@ -218,6 +232,14 @@ const SoccerSchoolAdmin = () => {
                                                 >
                                                     <Link className="w-4 h-4" /> <span>紐づけ</span>
                                                 </button>
+                                                <button onClick={() => {
+                                                    setSelectedPlayer(p);
+                                                    setShowSiblingModal(true);
+                                                }}
+                                                    className="ml-2 text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                                                >
+                                                    <Users className="w-4 h-4" /> <span>兄弟設定</span>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -235,6 +257,7 @@ const SoccerSchoolAdmin = () => {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">プロフィール画像</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">表示名</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LINE ID</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録日</th>
@@ -267,47 +290,6 @@ const SoccerSchoolAdmin = () => {
                         </div>
                     </div>
                 )}
-
-                {/* ── 紐づけタブ ── */}
-                {activeTab === 'links' && selectedPlayer && (
-                    <div>
-                        <h2 className="text-lg font-semibold mb-4">「{selectedPlayer.name}」の保護者紐づけ管理</h2>
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="font-medium mb-2">紐づけ可能な保護者</h3>
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {getUnlinkedParents(selectedPlayer).map(u => (
-                                        <div key={u.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                                            <span>{u.display_name}</span>
-                                            <button onClick={() => linkParentToPlayer(selectedPlayer, u)}
-                                                className="text-green-600 hover:text-green-900">
-                                                <Plus className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <h3 className="font-medium mb-2">紐づけ済み保護者</h3>
-                                <div className="space-y-2">
-                                    {getLinkedParents(selectedPlayer).map(u => (
-                                        <div key={u.id} className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
-                                            <span>{u.display_name}</span>
-                                            <button onClick={() => unlinkParentFromPlayer(selectedPlayer, u)}
-                                                className="text-red-600 hover:text-red-900">
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        <button onClick={() => setShowLinkModal(false)}
-                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                            閉じる
-                        </button>
-                    </div>
-                )}
             </div>
 
             {/* ── 選手追加フォーム ── */}
@@ -337,6 +319,73 @@ const SoccerSchoolAdmin = () => {
                                 追加
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 保護者紐づけモーダル ── */}
+            {showLinkModal && selectedPlayer && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <h3 className="text-lg font-medium mb-4">「{selectedPlayer.name}」の保護者を選択</h3>
+                        <div className="space-y-6">
+                            <div>
+                                <h4 className="font-medium mb-2">紐づけ可能な保護者</h4>
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {getUnlinkedParents(selectedPlayer).map(u => (
+                                        <div key={u.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                            <span>{u.display_name}</span>
+                                            <button onClick={() => { linkParentToPlayer(selectedPlayer, u); setShowLinkModal(false); }}
+                                                className="text-green-600 hover:text-green-900">
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-medium mb-2">紐づけ済み保護者</h4>
+                                <div className="space-y-2">
+                                    {getLinkedParents(selectedPlayer).map(u => (
+                                        <div key={u.id} className="flex items-center justify-between bg-green-50 p-3 rounded-lg">
+                                            <span>{u.display_name}</span>
+                                            <button onClick={() => unlinkParentFromPlayer(selectedPlayer, u)}
+                                                className="text-red-600 hover:text-red-900">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => setShowLinkModal(false)}
+                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                            閉じる
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 兄弟設定モーダル ── */}
+            {showSiblingModal && selectedPlayer && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <h3 className="text-lg font-medium mb-4">「{selectedPlayer.name}」の兄弟を選択</h3>
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {players.filter(pl => pl.id !== selectedPlayer.id).map(pl => (
+                                <div key={pl.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                    <span>{pl.name}</span>
+                                    <button onClick={() => handleSetSibling(pl)}
+                                        className="text-green-600 hover:text-green-900">
+                                        <Plus className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <button onClick={() => setShowSiblingModal(false)}
+                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                            閉じる
+                        </button>
                     </div>
                 </div>
             )}
