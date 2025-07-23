@@ -68,3 +68,7 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## API Server
+
+Run `npm run server` to start the Express API backed by MySQL. Configure database connection using the `DB_HOST`, `DB_USER`, `DB_PASS` and `DB_NAME` environment variables. The API exposes `/players` and `/line_user` endpoints matching the previous `db.json` structure.

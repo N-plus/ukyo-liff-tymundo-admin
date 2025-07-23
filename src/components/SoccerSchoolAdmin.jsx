@@ -1,6 +1,14 @@
 // src/components/SoccerSchoolAdmin.jsx
 import React, { useState, useEffect } from 'react';
 import { Users, Link, RotateCcw, Search, Plus, X, Trash } from 'lucide-react';
+import {
+    fetchPlayers,
+    fetchLineUsers,
+    addPlayer,
+    deletePlayer,
+    updateLineUserFamily,
+    updatePlayerFamily,
+} from '../api';
 
 const SoccerSchoolAdmin = () => {
     // ── State 定義 ─────────────────────────────────
@@ -16,33 +24,12 @@ const SoccerSchoolAdmin = () => {
     const [selectedParent, setSelectedParent] = useState(null);
     const [newPlayerName, setNewPlayerName] = useState('');
 
-    // ── JSON 読み込み ────────────────────────────────
+    // ── データ読み込み ────────────────────────────────
     useEffect(() => {
-        fetch('/db.json')
-            .then(res => res.json())
-            .then(data => {
-                // players をアプリ内で扱いやすい形にマッピング
-                setPlayers(
-                    data.players.map(p => ({
-                        id: p.player_id,
-                        name: p.player_name,
-                        substitute_count: p.substitute_count,
-                        family_id: p.family_id,
-                        created_at: p.created_at
-                    }))
-                );
-                // line_user を同様にマッピング
-                setLineUsers(
-                    data.line_user.map(u => ({
-                        id: u.id,
-                        line_user_id: u.line_user_id,
-                        display_name: u.line_user_name,
-                        picture_url: u.picture_url,
-                        family_id: u.family_id,
-                        status: u.status,
-                        created_at: u.created_at
-                    }))
-                );
+        Promise.all([fetchPlayers(), fetchLineUsers()])
+            .then(([playersData, lineUserData]) => {
+                setPlayers(playersData);
+                setLineUsers(lineUserData);
             })
             .catch(console.error);
     }, []);
@@ -71,6 +58,7 @@ const SoccerSchoolAdmin = () => {
         lineUsers.filter(u => u.family_id !== player.family_id);
 
     const linkParentToPlayer = (player, parent) => {
+        updateLineUserFamily(parent.id, player.family_id).catch(console.error);
         setLineUsers(lineUsers.map(u =>
             u.id === parent.id
                 ? { ...u, family_id: player.family_id }
@@ -79,6 +67,7 @@ const SoccerSchoolAdmin = () => {
     };
 
     const unlinkParentFromPlayer = (player, parent) => {
+        updateLineUserFamily(parent.id, null).catch(console.error);
         setLineUsers(lineUsers.map(u =>
             u.id === parent.id
                 ? { ...u, family_id: null }
@@ -93,6 +82,7 @@ const SoccerSchoolAdmin = () => {
         players.filter(p => p.family_id !== parent.family_id);
 
     const linkPlayerToParent = (parent, player) => {
+        updatePlayerFamily(player.id, parent.family_id).catch(console.error);
         setPlayers(players.map(p =>
             p.id === player.id
                 ? { ...p, family_id: parent.family_id }
@@ -101,6 +91,7 @@ const SoccerSchoolAdmin = () => {
     };
 
     const unlinkPlayerFromParent = (parent, player) => {
+        updatePlayerFamily(player.id, null).catch(console.error);
         setPlayers(players.map(p =>
             p.id === player.id
                 ? { ...p, family_id: null }
@@ -140,6 +131,7 @@ const SoccerSchoolAdmin = () => {
             family_id: null,
             created_at: new Date().toISOString()
         };
+        addPlayer(newP).catch(console.error);
         setPlayers([newP, ...players]);
         setNewPlayerName('');
         setShowPlayerForm(false);
@@ -147,6 +139,7 @@ const SoccerSchoolAdmin = () => {
 
     const handleDeletePlayer = (playerId) => {
         if (window.confirm('本当に削除しますか？')) {
+            deletePlayer(playerId).catch(console.error);
             setPlayers(players.filter(p => p.id !== playerId));
         }
     };
@@ -155,10 +148,10 @@ const SoccerSchoolAdmin = () => {
         players.filter(p => p.family_id === player.family_id && p.id !== player.id);
 
     const filteredPlayers = players.filter(p =>
-        p.name.includes(searchTerm)
+        (p.name || '').includes(searchTerm)
     );
     const filteredLineUsers = lineUsers.filter(u =>
-        u.display_name.includes(searchTerm)
+        (u.display_name || '').includes(searchTerm)
     );
 
     const hasLinkedPlayer = parent =>

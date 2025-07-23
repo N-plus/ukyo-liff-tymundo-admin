@@ -1,0 +1,188 @@
+{
+    "line_user": [
+        {
+            "id": 2,
+            "line_user_id": "Ua2c7e633b09d0ae3303fab588b18caf1",
+            "line_user_name": "Ayumi ❤",
+            "picture_url": "https://sprofile.line-scdn.net/0hXX5NOBoGB3cYNxaOq6d5CGhnBB07Rl5lPFZMRH8wWU8lAxNyZwEbGHk-DE4hAxV0NlQfRi8wXUAUJHARBmH7Qx8HWkYkBEYnPFFOkA",
+            "family_id": "XA00030",
+            "status": "none",
+            "created_at": "2024-10-09 23:10:00"
+        },
+        {
+            "id": 4,
+            "line_user_id": "U4941e111318f3240c9116404297a8f83",
+            "line_user_name": "番場かなえ",
+            "picture_url": "https://profile.line-scdn.net/ch/v2/p/u826418b6157e8349eabb435547de086e/1356846828233",
+            "family_id": "XA00011",
+            "status": "none",
+            "created_at": "2024-10-10 07:30:00"
+        },
+        {
+            "id": 5,
+            "line_user_id": "U5039a862d9c3e5d0bcabc3be5dc32fbb",
+            "line_user_name": "藤原美佐子",
+            "picture_url": "https://sprofile.line-scdn.net/…",
+            "family_id": "XA00016",
+            "status": "none",
+            "created_at": "2024-10-10 09:11:00"
+        },
+        {
+            "id": 6,
+            "line_user_id": "Uc41a2119cd10b2bacdb8561bc283cb2e",
+            "line_user_name": "Asami",
+            "picture_url": "https://sprofile.line-scdn.net/…",
+            "family_id": "XA00038",
+            "status": "none",
+            "created_at": "2024-10-10 09:28:00"
+        },
+        {
+            "id": 7,
+            "line_user_id": "U56044c85604d7da782699707b4ba7209",
+            "line_user_name": "Azusa Sato",
+            "picture_url": "https://sprofile.line-scdn.net/…",
+            "family_id": "XA00018",
+            "status": "none",
+            "created_at": "2024-10-10 13:19:00"
+        },
+        {
+            "id": 8,
+            "line_user_id": "U7851e89a1a9fd43f9cd09b8e0f108a4a",
+            "line_user_name": "あいはらみゆき",
+            "picture_url": "https://sprofile.line-scdn.net/…",
+            "family_id": "XA00023",
+            "status": "none",
+            "created_at": "2024-10-10 13:28:00"
+        },
+        {
+            "id": 9,
+            "line_user_id": "U954f9b8921c8a8820519fec1fa24cc90",
+            "line_user_name": "たかはしmap ★",
+            "picture_url": "https://sprofile.line-scdn.net/…",
+            "family_id": "XA00026",
+            "status": "none",
+            "created_at": "2024-10-10 18:40:00"
+        }
+    ],
+    "players": [
+        {
+            "player_id": "00001",
+            "family_id": "XA00001",
+            "player_name": "日置瑛大",
+            "substitute_count": 2,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00002",
+            "family_id": "XA00002",
+            "player_name": "田中翼沙",
+            "substitute_count": 0,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00003",
+            "family_id": "XA00002",
+            "player_name": "田中廉人",
+            "substitute_count": 0,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00004",
+            "family_id": "XA00004",
+            "player_name": "酒井駿",
+            "substitute_count": 9,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00005",
+            "family_id": "XA00005",
+            "player_name": "務台千市",
+            "substitute_count": 5,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00006",
+            "family_id": "XA00006",
+            "player_name": "立石寛",
+            "substitute_count": 4,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00007",
+            "family_id": "XA00007",
+            "player_name": "濱田馬羽",
+            "substitute_count": 2,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00008",
+            "family_id": "XA00008",
+            "player_name": "清水大雅",
+            "substitute_count": 3,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00009",
+            "family_id": "XA00009",
+            "player_name": "松葉俊介",
+            "substitute_count": 1,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00010",
+            "family_id": "XA00010",
+            "player_name": "赤荻圭",
+            "substitute_count": 4,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00011",
+            "family_id": "XA00011",
+            "player_name": "番場陸",
+            "substitute_count": 7,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00012",
+            "family_id": "XA00012",
+            "player_name": "伊藤仁",
+            "substitute_count": 1,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00013",
+            "family_id": "XA00013",
+            "player_name": "小野寺琉笑夢",
+            "substitute_count": 0,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00014",
+            "family_id": "XA00014",
+            "player_name": "野口七澄",
+            "substitute_count": 3,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00015",
+            "family_id": "XA00015",
+            "player_name": "戸張太智",
+            "substitute_count": 12,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00016",
+            "family_id": "XA00016",
+            "player_name": "藤原基入",
+            "substitute_count": 1,
+            "created_at": "2025-05-09 21:27:35"
+        },
+        {
+            "player_id": "00017",
+            "family_id": "XA00016",
+            "player_name": "藤原佑公",
+            "substitute_count": 2,
+            "created_at": "2025-05-09 21:27:35"
+        }
+    ]
+}
