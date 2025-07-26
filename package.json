@@ -3,6 +3,7 @@
   "proxy": "http://localhost:4000",
   "name": "admin",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
@@ -10,9 +11,11 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.10.0",
+    "dotenv": "^17.2.0",
     "express": "^4.21.2",
-    "mysql2": "^3.9.7",
     "lucide-react": "^0.525.0",
+    "morgan": "^1.10.1",
+    "mysql2": "^3.9.7",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-scripts": "5.0.1",
@@ -44,6 +47,7 @@
     ]
   },
   "devDependencies": {
-    "json-server": "^1.0.0-beta.3"
+    "json-server": "^1.0.0-beta.3",
+    "kill-port": "^2.0.1"
   }
 }

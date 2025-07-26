@@ -72,3 +72,15 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/t
 ## API Server
 
 Run `npm run server` to start the Express API backed by MySQL. Configure database connection using the `DB_HOST`, `DB_USER`, `DB_PASS` and `DB_NAME` environment variables. The API exposes `/players` and `/line_user` endpoints matching the previous `db.json` structure.
+
+To deploy the frontend and API separately, configure the API base URL using a `.env` file:
+
+```
+REACT_APP_API_BASE_URL=http://your-api-server:4000
+```
+
+When omitted, requests fall back to relative paths (useful for the proxy in development). Ensure the Express server is running so data can be retrieved.
+
+### Debugging failed requests
+
+If no data appears in the admin UI, open your browser's developer tools and check the Network tab for failed API calls. Any errors from the Express API will also be printed in the terminal running `npm run server`.

@@ -1,13 +1,16 @@
 // src/components/SoccerSchoolAdmin.jsx
 import React, { useState, useEffect } from 'react';
+import '../App.css';
 import { Users, Link, RotateCcw, Search, Plus, X, Trash } from 'lucide-react';
 import {
     fetchPlayers,
     fetchLineUsers,
     addPlayer,
     deletePlayer,
+    deleteRenkeiPlayer,
     updateLineUserFamily,
     updatePlayerFamily,
+    updatePlayerSubCount,
 } from '../api';
 
 const SoccerSchoolAdmin = () => {
@@ -27,20 +30,35 @@ const SoccerSchoolAdmin = () => {
     // ── データ読み込み ────────────────────────────────
     useEffect(() => {
         Promise.all([fetchPlayers(), fetchLineUsers()])
-            .then(([playersData, lineUserData]) => {
-                setPlayers(playersData);
-                setLineUsers(lineUserData);
+            .then(([playersData = [], lineUserData = []]) => {
+                setPlayers(Array.isArray(playersData) ? playersData : []);
+                setLineUsers(Array.isArray(lineUserData) ? lineUserData : []);
             })
             .catch(console.error);
     }, []);
 
     // ── ヘルパー関数 ───────────────────────────────
     const updateTransferCount = (playerId, delta) => {
-        setPlayers(players.map(p =>
-            p.id === playerId
-                ? { ...p, substitute_count: Math.max(0, p.substitute_count + delta) }
-                : p
-        ));
+        setPlayers(prev => {
+            const next = prev.map(p =>
+                p.id === playerId
+                    ? { ...p, substitute_count: Math.max(0, p.substitute_count + delta) }
+                    : p
+            );
+
+            // 計算後の最新値を取得して API へ
+            const newCount = next.find(p => p.id === playerId).substitute_count;
+
+            updatePlayerSubCount(playerId, newCount)
+                .catch(err => {
+                    console.error(err);
+                    // 失敗したらロールバックする例
+                    setPlayers(prev);   // 元の状態に戻す
+                    alert('保存に失敗しました');
+                });
+
+            return next; // 楽観的に即描画を更新
+        });
     };
 
     const resetTransferCount = playerId => {
@@ -54,25 +72,41 @@ const SoccerSchoolAdmin = () => {
     const getLinkedParents = player =>
         lineUsers.filter(u => u.family_id === player.family_id);
 
-    const getUnlinkedParents = player =>
-        lineUsers.filter(u => u.family_id !== player.family_id);
+    const getUnlinkedParents = () =>
+        lineUsers.filter(u => u.family_id === null);
 
-    const linkParentToPlayer = (player, parent) => {
-        updateLineUserFamily(parent.id, player.family_id).catch(console.error);
-        setLineUsers(lineUsers.map(u =>
-            u.id === parent.id
-                ? { ...u, family_id: player.family_id }
-                : u
-        ));
+    const linkParentToPlayer = async (player, parent) => {
+        try {
+            // API：line_user.family_id = player.family_id
+            await updateLineUserFamily(parent.id, player.family_id);
+            // state 更新
+            setLineUsers(prev =>
+                prev.map(u =>
+                    u.id === parent.id
+                        ? { ...u, family_id: player.family_id }
+                        : u
+                )
+            );
+        } catch (err) {
+            console.error(err);
+            alert('保護者紐づけに失敗しました');
+        }
     };
 
-    const unlinkParentFromPlayer = (player, parent) => {
-        updateLineUserFamily(parent.id, null).catch(console.error);
-        setLineUsers(lineUsers.map(u =>
-            u.id === parent.id
-                ? { ...u, family_id: null }
-                : u
-        ));
+    const unlinkParentFromPlayer = async (player, parent) => {
+        try {
+            await updateLineUserFamily(parent.id, null);
+            setLineUsers(prev =>
+                prev.map(u =>
+                    u.id === parent.id
+                        ? { ...u, family_id: null }
+                        : u
+                )
+            );
+        } catch (err) {
+            console.error(err);
+            alert('保護者の紐づけ解除に失敗しました');
+        }
     };
 
     const getLinkedPlayers = parent =>
@@ -99,48 +133,81 @@ const SoccerSchoolAdmin = () => {
         ));
     };
 
-    const handleSetSibling = (targetPlayer) => {
+    const handleSetSibling = async (targetPlayer) => {
         if (!selectedPlayer) return;
-        const parentCount = (familyId) => lineUsers.filter(u => u.family_id === familyId).length;
-        const countSel = parentCount(selectedPlayer.family_id);
-        const countTar = parentCount(targetPlayer.family_id);
-        let newId;
-        if (countSel === 0 && countTar === 0) {
-            const num = (id) => id ? parseInt(id.replace(/\D/g, ''), 10) : Infinity;
-            newId = num(selectedPlayer.family_id) <= num(targetPlayer.family_id)
-                ? selectedPlayer.family_id
-                : targetPlayer.family_id;
-        } else {
-            newId = countSel >= countTar ? selectedPlayer.family_id : targetPlayer.family_id;
+
+        // 1. id を数値として比較
+        const id1 = parseInt(selectedPlayer.id, 10);
+        const id2 = parseInt(targetPlayer.id, 10);
+        const minId = Math.min(id1, id2);
+        // 2. ゼロパディングした文字列に戻す
+        const minIdStr = String(minId).padStart(5, '0');
+
+        // 3. そのプレイヤーの family_id を参照（なければ新規に作成）
+        const ref = players.find(p => p.id === minIdStr);
+        const newFamilyId = ref && ref.family_id
+            ? ref.family_id
+            : 'XA' + minIdStr;
+
+        // 4. 更新対象はこの２人だけ
+        const affectedIds = [selectedPlayer.id, targetPlayer.id];
+
+        try {
+            // 5. API で一括更新
+            await Promise.all(
+                affectedIds.map(id => updatePlayerFamily(id, newFamilyId))
+            );
+            // 6. state に反映
+            setPlayers(prev =>
+                prev.map(p =>
+                    affectedIds.includes(p.id)
+                        ? { ...p, family_id: newFamilyId }
+                        : p
+                )
+            );
+            setShowSiblingModal(false);
+        } catch (err) {
+            console.error(err);
+            alert('兄弟設定に失敗しました');
         }
-        const ids = [selectedPlayer.family_id, targetPlayer.family_id];
-        setPlayers(players.map(p =>
-            ids.includes(p.family_id)
-                ? { ...p, family_id: newId }
-                : p
-        ));
-        setShowSiblingModal(false);
     };
 
     const handleAddPlayer = () => {
-        if (!newPlayerName.trim()) return;
-        const newP = {
-            id: Date.now().toString(),
-            name: newPlayerName.trim(),
-            substitute_count: 0,
-            family_id: null,
-            created_at: new Date().toISOString()
-        };
-        addPlayer(newP).catch(console.error);
-        setPlayers([newP, ...players]);
-        setNewPlayerName('');
-        setShowPlayerForm(false);
+        const name = newPlayerName.trim();
+        if (!name) return;
+        addPlayer(name)
+            .then(newP => {
+                // バックエンドが返してくれた newP.id, newP.family_id などをそのまま追加
+                setPlayers([newP, ...players]);
+                setNewPlayerName('');
+                setShowPlayerForm(false);
+            })
+            .catch(err => {
+                console.error(err);
+                alert('選手追加に失敗しました');
+            });
     };
 
     const handleDeletePlayer = (playerId) => {
         if (window.confirm('本当に削除しますか？')) {
             deletePlayer(playerId).catch(console.error);
             setPlayers(players.filter(p => p.id !== playerId));
+        }
+    };
+
+    const handleDeleteRenkeiPlayer = async (parentId) => {
+        try {
+            await deleteRenkeiPlayer(parentId);
+            setLineUsers(prev =>
+                prev.map(u =>
+                    u.id === parentId
+                        ? { ...u, family_id: null }
+                        : u
+                )
+            );
+        } catch (err) {
+            console.error(err);
+            alert('紐づけ解除に失敗しました');
         }
     };
 
@@ -178,13 +245,13 @@ const SoccerSchoolAdmin = () => {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* ヘッダー */}
-            <div className="bg-black shadow-sm border-b">
+            <div className="gradientBg shadow-sm border-b">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center space-y-4 sm:space-y-0">
                     <div className="flex items-center">
                         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                            <Users className="w-5 h-5 text-white" />
+                            <img src="https://tymundofs2018.tokyo/images/icon.JPG" alt="" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white">スクール管理画面</h1>
+                        <h1 className="text-2xl font-bold text-white">T.Y.MUNDOスクール管理画面</h1>
                     </div>
                     <div className="relative w-full sm:w-auto mt-2 sm:mt-0">
                         <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -239,6 +306,7 @@ const SoccerSchoolAdmin = () => {
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">選手名</th>
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">振替回数</th>
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">紐づけ済み保護者</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">兄弟</th>
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">操作</th>
                                     </tr>
                                 </thead>
@@ -334,13 +402,22 @@ const SoccerSchoolAdmin = () => {
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">LINE ID</th>
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">登録日</th>
                                         <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">紐づけ済み選手</th>
-                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">操作</th>
+                                        <th className="px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase">紐づけ解除</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {sortedLineUsers.map(u => (
                                         <tr key={u.id} className={`${getLinkedPlayers(u).length === 0 ? 'bg-red-50' : ''}`}>
-                                            <td className="px-6 py-4"><img src={u.picture_url} alt={u.display_name} className="w-10 h-10 rounded-full object-cover" /></td>
+                                            <td className="px-6 py-4">
+                                                <img
+                                                    src={u.picture_url || './images/default-avatar.png'}    // 空ならデフォルト
+                                                    className="w-10 h-10 rounded-full object-cover"
+                                                    alt={u.display_name}
+                                                    onError={e => {                                     // URL切れにも対応
+                                                        e.currentTarget.src = './images/default-avatar.png';
+                                                    }}
+                                                />
+                                            </td>
                                             <td className="px-6 py-4">{u.display_name}</td>
                                             <td className="px-6 py-4">{u.line_user_id}</td>
                                             <td className="px-6 py-4">{u.created_at}</td>
@@ -357,9 +434,9 @@ const SoccerSchoolAdmin = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <button onClick={() => { setSelectedParent(u); setShowParentLinkModal(true); }}
-                                                    className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
-                                                    <Link className="w-4 h-4" /> <span>紐づけ</span>
+                                                <button onClick={() => handleDeleteRenkeiPlayer(u.id)}
+                                                    className="text-red-600 hover:text-blue-900 flex items-center space-x-1">
+                                                    <Trash className="w-4 h-4" /> <span>紐づけ解除</span>
                                                 </button>
                                             </td>
                                         </tr>
@@ -402,34 +479,43 @@ const SoccerSchoolAdmin = () => {
                 </div>
             )}
 
-            {/* ── 保護者紐づけモーダル ── */}
+            {/* ── 選手紐づけモーダル ── */}
             {showLinkModal && selectedPlayer && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
-                        <h3 className="text-lg font-medium mb-4">「{selectedPlayer.name}」の保護者を選択</h3>
+                        <h3 className="text-lg font-medium mb-4">
+                            「{selectedPlayer.name}」の保護者を選択
+                        </h3>
                         <div className="space-y-6">
+                            {/* 紐づけ可能な保護者 */}
                             <div>
                                 <h4 className="font-medium mb-2">紐づけ可能な保護者</h4>
                                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {getUnlinkedParents(selectedPlayer).map(u => (
+                                    {getUnlinkedParents().map(u => (
                                         <div key={u.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                                             <span>{u.display_name}</span>
-                                            <button onClick={() => { linkParentToPlayer(selectedPlayer, u); setShowLinkModal(false); }}
-                                                className="text-blue-600 hover:text-blue-900">
+                                            <button
+                                                onClick={() => linkParentToPlayer(selectedPlayer, u)}
+                                                className="text-blue-600 hover:text-blue-900"
+                                            >
                                                 <Plus className="w-4 h-4" />
                                             </button>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+
+                            {/* 紐づけ済みの保護者 */}
                             <div>
-                                <h4 className="font-medium mb-2">紐づけ済み保護者</h4>
+                                <h4 className="font-medium mb-2">紐づけ済みの保護者</h4>
                                 <div className="space-y-2">
                                     {getLinkedParents(selectedPlayer).map(u => (
                                         <div key={u.id} className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
                                             <span>{u.display_name}</span>
-                                            <button onClick={() => unlinkParentFromPlayer(selectedPlayer, u)}
-                                                className="text-red-600 hover:text-red-900">
+                                            <button
+                                                onClick={() => unlinkParentFromPlayer(selectedPlayer, u)}
+                                                className="text-red-600 hover:text-red-900"
+                                            >
                                                 <X className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -437,73 +523,42 @@ const SoccerSchoolAdmin = () => {
                                 </div>
                             </div>
                         </div>
-                        <button onClick={() => setShowLinkModal(false)}
-                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                        <button
+                            onClick={() => setShowLinkModal(false)}
+                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                        >
                             閉じる
                         </button>
                     </div>
                 </div>
             )}
-            {/* ── 選手紐づけモーダル（保護者側） ── */}
-            {showParentLinkModal && selectedParent && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg max-w-md w-full p-6">
-                        <h3 className="text-lg font-medium mb-4">「{selectedParent.display_name}」の選手を選択</h3>
-                        <div className="space-y-6">
-                            <div>
-                                <h4 className="font-medium mb-2">紐づけ可能な選手</h4>
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {getUnlinkedPlayers(selectedParent).map(p => (
-                                        <div key={p.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                                            <span>{p.name}</span>
-                                            <button onClick={() => { linkPlayerToParent(selectedParent, p); setShowParentLinkModal(false); }}
-                                                className="text-blue-600 hover:text-blue-900">
-                                                <Plus className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="font-medium mb-2">紐づけ済み選手</h4>
-                                <div className="space-y-2">
-                                    {getLinkedPlayers(selectedParent).map(p => (
-                                        <div key={p.id} className="flex items-center justify-between bg-blue-50 p-3 rounded-lg">
-                                            <span>{p.name}</span>
-                                            <button onClick={() => unlinkPlayerFromParent(selectedParent, p)}
-                                                className="text-red-600 hover:text-red-900">
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        <button onClick={() => setShowParentLinkModal(false)}
-                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                            閉じる
-                        </button>
-                    </div>
-                </div>
-            )}
-            {/* ── 兄弟設定モーダル ── */}
+
             {showSiblingModal && selectedPlayer && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
-                        <h3 className="text-lg font-medium mb-4">「{selectedPlayer.name}」の兄弟を選択</h3>
+                        <h3 className="text-lg font-medium mb-4">
+                            「{selectedPlayer.name}」の兄弟を設定
+                        </h3>
                         <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {players.filter(pl => pl.id !== selectedPlayer.id).map(pl => (
-                                <div key={pl.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                                    <span>{pl.name}</span>
-                                    <button onClick={() => handleSetSibling(pl)}
-                                        className="text-blue-600 hover:text-blue-900">
-                                        <Plus className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
+                            {players
+                                .filter(p => p.id !== selectedPlayer.id)
+                                .map(pl => (
+                                    <div key={pl.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                        <span>{pl.name}</span>
+                                        <button
+                                            onClick={() => handleSetSibling(pl)}
+                                            className="text-blue-600 hover:text-blue-900"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))
+                            }
                         </div>
-                        <button onClick={() => setShowSiblingModal(false)}
-                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+                        <button
+                            onClick={() => setShowSiblingModal(false)}
+                            className="mt-6 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                        >
                             閉じる
                         </button>
                     </div>
