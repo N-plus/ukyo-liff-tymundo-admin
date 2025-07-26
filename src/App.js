@@ -1,5 +1,5 @@
 import React from 'react';
-import SoccerSchoolAdmin from './components/SoccerSchoolAdmin';
+import SoccerSchoolAdmin from './components/SoccerSchoolAdmin.jsx';
 
 function App() {
   return <SoccerSchoolAdmin />;

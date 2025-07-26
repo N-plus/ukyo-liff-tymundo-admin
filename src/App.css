@@ -28,6 +28,10 @@
   color: #61dafb;
 }
 
+.gradientBg {
+background: linear-gradient(-20deg, #282627ff 0%, #505150ff 100%);
+}
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);

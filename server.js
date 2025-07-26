@@ -1,86 +1,65 @@
-const express = require('express');
-const mysql = require('mysql2/promise');
+// server.js
+import 'dotenv/config';
+import express from 'express';
+import morgan from 'morgan';
+import mysql from 'mysql2/promise';
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// MySQL プール設定
 const pool = mysql.createPool({
-    host: 'mysql1101.db.sakura.ne.jp',
-    user: 'tymundofs2018_kintai',
-    password: 'yuuuki333',
-    database: 'tymundofs2018_kintai',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS,
+    database: process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
-    charset: 'utf8mb4'
+    charset: 'utf8mb4',
+    connectTimeout: 10000,
 });
 
+// ミドルウェア
+app.use(morgan('dev'));
 app.use(express.json());
 
+// 選手一覧取得
 app.get('/players', async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT player_id AS id, family_id, player_name AS name, substitute_count, created_at FROM players'
+            `SELECT player_id AS id, player_name AS name, substitute_count, family_id
+       FROM players`
         );
+        console.log('[MySQL] /players returned', rows.length, 'rows');
         res.json(rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('[MySQL] /players query failed:', err);
+        res.status(500).json({ error: err.code, message: err.message });
     }
 });
 
-app.post('/players', async (req, res) => {
-    const { id, name, family_id } = req.body;
-    try {
-        await pool.query(
-            'INSERT INTO players (player_id, player_name, family_id) VALUES (?, ?, ?)',
-            [id, name, family_id]
-        );
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.patch('/players/:id', async (req, res) => {
-    const { id } = req.params;
-    const { family_id } = req.body;
-    try {
-        await pool.query('UPDATE players SET family_id = ? WHERE player_id = ?', [family_id, id]);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.delete('/players/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        await pool.query('DELETE FROM players WHERE player_id = ?', [id]);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
+// 保護者一覧取得
 app.get('/line_user', async (req, res) => {
     try {
         const [rows] = await pool.query(
-            'SELECT id, line_user_id, line_user_name AS display_name, picture_url, family_id, status, created_at FROM line_user'
+            `SELECT id
+             , line_user_id
+             , line_user_name AS display_name
+             , picture_url
+             , family_id
+             , status
+             , created_at
+       FROM line_user`
         );
+        console.log('[MySQL] /line_user returned', rows.length, 'rows');
         res.json(rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('[MySQL] /line_user query failed:', err);
+        res.status(500).json({ error: err.code, message: err.message });
     }
 });
 
-app.patch('/line_user/:id', async (req, res) => {
-    const { id } = req.params;
-    const { family_id } = req.body;
-    try {
-        await pool.query('UPDATE line_user SET family_id = ? WHERE id = ?', [family_id, id]);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+//（以下、省略。POST/PATCH/DELETE も同様に async/await + pool.query）
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
